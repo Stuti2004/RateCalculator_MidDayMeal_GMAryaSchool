@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="pa">
+<head>
+<meta charset="UTF-8">
+<title>ਮਿਡ ਡੇ ਮੀਲ ਰਜਿਸਟਰ</title>
+<script src="https://cdn.tailwindcss.com"></script>
+
+<style>
+@media print{
+body{
+zoom:80%;
+}
+button,input,select{
+display:none;
+}
+}
+</style>
+
+</head>
+
+<body class="bg-gray-100 p-6">
+
+<div class="max-w-7xl mx-auto bg-white p-6 rounded shadow">
+
+<h1 class="text-3xl font-bold text-center mb-2">
+ਜੀ.ਐਮ. ਆਰਿਆ ਗਰਲਜ਼ ਹਾਈ ਸਕੂਲ
+</h1>
+
+<h2 class="text-xl text-center mb-6">
+ਮਿਡ ਡੇ ਮੀਲ ਹਾਜ਼ਰੀ ਰਜਿਸਟਰ
+</h2>
+
+<div class="flex gap-4 mb-4 flex-wrap">
+<h4>Month</h4>
+<input type="month" id="month" class="border p-2">
+<br><newline></newline>
+<h4>Class</h4>
+<select id="classes" class="border p-2 h-32">
+<option value="UKG">UKG</option>
+<option value="1,2,3,4,5">1-5</option>
+<option value="6,7,8">6-8</option>
+</select>
+<br><newline></newline>
+
+<button onclick="generateTable()" class="bg-blue-500 text-white px-4 py-2 rounded">
+Make Table
+</button>
+<br><newline></newline>
+
+</div>
+
+<div class="overflow-auto">
+<table class="text-center table-fixed w-full border" id="table"></table>
+</div>
+<button onclick="exportExcel()" class="bg-green-600 text-white px-4 py-2 rounded">
+ Excel Export
+</button>
+
+<button onclick="preparePrint()" class="bg-purple-600 text-white px-4 py-2 rounded">
+Print
+</button>
+</div>
+
+<script>
+
+const daysPunjabi=["ਐਤ","ਸੋਮ","ਮੰਗਲ","ਬੁੱਧ","ਵੀਰ","ਸ਼ੁੱਕਰ","ਸ਼ਨੀ"]
+
+function generateTable(){
+
+let monthInput=document.getElementById("month").value
+if(!monthInput) return
+
+let [year,month]=monthInput.split("-")
+month=parseInt(month)
+
+let days=new Date(year,month,0).getDate()
+
+let selected = [...document.getElementById("classes").selectedOptions].map(o => o.value.split(",")).flat()
+
+let table=document.getElementById("table")
+
+let header=`<tr class="bg-gray-200">
+<th class="w-20">ਤਾਰੀਖ</th>`
+
+selected.forEach(c=>{
+header+=`<th class="w-17">ਕਲਾਸ ${c}</th>`
+})
+
+header+=`
+<th class="w-20">ਕੁੱਲ</th>
+<th class="w-26">ਰਕਮ</th>
+<th class="w-22">ਵਾਰ</th>
+<th class="w-30">ਕਣਕ</th>
+<th class="w-30">ਚਾਵਲ</th>
+</tr>`
+
+let body=""
+
+for(let d=1;d<=days;d++){
+
+let date=new Date(year,month-1,d)
+let weekday=date.getDay()
+
+body+=`<tr>
+<td>${d}</td>`
+
+selected.forEach(()=>{
+body+=`<td>
+<input type="number" class="att w-20 border text-center" oninput="calculate()">
+</td>`
+})
+
+body+=`
+<td class="total"></td>
+<td class="grain"></td>
+<td>${daysPunjabi[weekday]}</td>
+<td class="wheat"></td>
+<td class="rice"></td>
+</tr>`
+}
+
+// add totals row
+body += `<tr id="totalsRow" class="bg-gray-200 font-bold">
+<td>ਕੁੱਲ</td>`
+
+selected.forEach(()=>{
+body += `<td class="classTotal">0</td>`
+})
+
+body += `
+<td id="grandTotal">0</td>
+<td id="grainTotal">0</td>
+<td>-</td>
+<td id="wheatTotal">0</td>
+<td id="riceTotal">0</td>
+</tr>`
+
+table.innerHTML=header+body
+calculate()
+
+}
+
+function preparePrint(){
+
+let inputs=document.querySelectorAll(".att")
+
+inputs.forEach(input=>{
+
+let value=input.value || 0
+
+let span=document.createElement("span")
+span.innerText=value
+
+span.className="print-value"
+
+input.parentNode.appendChild(span)
+
+})
+
+window.print()
+
+location.reload()
+
+}
+
+function calculate(){
+
+let rows=document.querySelectorAll("#table tr")
+
+let classTotals=[]
+let grandTotal=0
+let grainTotal=0
+let wheatTotal=0
+let riceTotal=0
+
+let selectedOption = document.getElementById("classes").value
+
+let grainRate = 0
+
+if(selectedOption == "UKG"){
+grainRate = 9.5
+}
+else if(selectedOption == "1,2,3,4,5"){
+grainRate = 10
+}
+else if(selectedOption == "6,7,8"){
+grainRate = 10.17
+}
+
+
+rows.forEach((row,i)=>{
+
+if(i==0 || row.id=="totalsRow") return
+
+let inputs=row.querySelectorAll(".att")
+
+let sum=0
+
+inputs.forEach((inp,j)=>{
+
+let val=parseFloat(inp.value)||0
+sum+=val
+
+classTotals[j]=(classTotals[j]||0)+val
+
+})
+
+row.querySelector(".total").innerText=sum
+
+grandTotal+=sum
+
+
+let grain=sum*grainRate
+row.querySelector(".grain").innerText=grain.toFixed(2)
+
+grainTotal+=grain
+
+let day=row.children[row.children.length-3].innerText
+
+let wheat=0
+let rice=0
+
+if(day=="ਸੋਮ"||day=="ਬੁੱਧ"||day=="ਸ਼ੁੱਕਰ"){
+wheat=sum*150
+}
+
+if(day=="ਮੰਗਲ"||day=="ਵੀਰ"||day=="ਸ਼ਨੀ"){
+rice=sum*150
+}
+
+row.querySelector(".wheat").innerText=wheat
+row.querySelector(".rice").innerText=rice
+
+wheatTotal+=wheat
+riceTotal+=rice
+
+})
+
+// update totals row
+
+let classCells=document.querySelectorAll(".classTotal")
+
+classTotals.forEach((t,i)=>{
+classCells[i].innerText=t
+})
+
+document.getElementById("grandTotal").innerText=grandTotal
+document.getElementById("grainTotal").innerText=grainTotal.toFixed(2)
+document.getElementById("wheatTotal").innerText=wheatTotal
+document.getElementById("riceTotal").innerText=riceTotal
+
+}
+
+function exportExcel(){
+
+let table=document.getElementById("table").outerHTML
+
+let dataType='application/vnd.ms-excel'
+
+let a=document.createElement('a')
+
+a.href='data:'+dataType+', '+encodeURIComponent(table)
+
+a.download='midday_meal_register.xls'
+
+a.click()
+
+}
+
+</script>
+
+</body>
+</html>
